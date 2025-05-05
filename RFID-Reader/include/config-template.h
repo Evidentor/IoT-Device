@@ -19,3 +19,6 @@
 #define CET_OFFSET              3600
 #define DEVICE_ACCESS_TOKEN     "device_access_token"
 #define ROOM_ID                 "room-1"
+
+#define BUZZZER_PIN             25 // ESP32 pin GPIO25 connected to piezo buzzer
+#define BUTTON_WIFI_SETUP_PIN   15

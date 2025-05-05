@@ -6,10 +6,40 @@
 #include <time.h>
 #include <WiFiUdp.h>
 #include "config.h"
+#include "pitches.h"
+
+
+int lastState = HIGH; // the previous state
+int currentState;     // the current reading
+
+
+int melody[] = {
+  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+};
+
+
+int noteDurations[] = {
+  4, 8, 8, 4, 4, 4, 4, 4
+};
+
+
+void playSound() {
+  Serial.print("Starting with play sound...");
+  for (int thisNote = 0; thisNote < 8; thisNote++) {
+    int noteDuration = 1000 / noteDurations[thisNote];
+    tone(BUZZZER_PIN, melody[thisNote], noteDuration);
+
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    noTone(BUZZZER_PIN);
+  }
+}
+
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
+
 
 void connectToWiFi(const char* ssid, const char* password, int retryInterval, bool reconnecting) {
   Serial.printf("%s to WiFi %s", reconnecting ? "Reconnecting" : "Connecting", ssid);
@@ -24,6 +54,7 @@ void connectToWiFi(const char* ssid, const char* password, int retryInterval, bo
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }
+
 
 void connectToMQTT(const char* clientId, int retryInterval, bool reconnecting) {
   while (!mqttClient.connected()) {
@@ -40,6 +71,7 @@ void connectToMQTT(const char* clientId, int retryInterval, bool reconnecting) {
   }
 }
 
+
 String nuidToString(byte *nuid) {
   String nuidStr = "";
   for (byte i = 0; i < 4; i++) {
@@ -51,6 +83,7 @@ String nuidToString(byte *nuid) {
   return nuidStr;
 }
 
+
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
@@ -58,58 +91,69 @@ void setup() {
   }
 
   // WiFi Setup
-  connectToWiFi(WIFI_SSID, WIFI_PASSWORD, WIFI_RETRY_INTERVAL, false);
+  // connectToWiFi(WIFI_SSID, WIFI_PASSWORD, WIFI_RETRY_INTERVAL, false);
 
   // Setup MQTT
-  mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
-  connectToMQTT(MQTT_CLIENT_ID, MQTT_RETRY_INTERVAL, false);
+  // mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
+  // connectToMQTT(MQTT_CLIENT_ID, MQTT_RETRY_INTERVAL, false);
 
   SPI.begin();  // Init SPI bus
-  mfrc522.PCD_Init();  // Init MFRC522
+  // mfrc522.PCD_Init();  // Init MFRC522
 
-  Serial.println("RC522 Initialized. Bring a card near...");
+  // Serial.println("RC522 Initialized. Bring a card near...");
+
+  // playSound();
+
+  pinMode(BUTTON_WIFI_SETUP_PIN, INPUT_PULLUP);
 }
 
 void loop() {
   // Check WiFi
-  if (WiFi.status() != WL_CONNECTED) {
-    connectToWiFi(WIFI_SSID, WIFI_PASSWORD, WIFI_RETRY_INTERVAL, true);
-  }
+  // if (WiFi.status() != WL_CONNECTED) {
+  //   connectToWiFi(WIFI_SSID, WIFI_PASSWORD, WIFI_RETRY_INTERVAL, true);
+  // }
 
   // Check MQTT; 0 - connected
-  if (mqttClient.connected() != 0) {
-    connectToMQTT(MQTT_CLIENT_ID, MQTT_RETRY_INTERVAL, true);
-  }
+  // if (mqttClient.connected() != 0) {
+  //   connectToMQTT(MQTT_CLIENT_ID, MQTT_RETRY_INTERVAL, true);
+  // }
 
   // Check for a new card
-  if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
-    Serial.print("Card UID: ");
+  // if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+  //   Serial.print("Card UID: ");
 
-    for (byte i = 0; i < mfrc522.uid.size; i++) {
-        Serial.print(mfrc522.uid.uidByte[i], HEX);
-        Serial.print(" ");
-    }
+  //   for (byte i = 0; i < mfrc522.uid.size; i++) {
+  //       Serial.print(mfrc522.uid.uidByte[i], HEX);
+  //       Serial.print(" ");
+  //   }
 
-    String nuidStr = nuidToString(mfrc522.uid.uidByte);
+  //   String nuidStr = nuidToString(mfrc522.uid.uidByte);
 
-    StaticJsonDocument<300> JSONbuffer;
-    JsonObject JSONencoder = JSONbuffer.to<JsonObject>();
+  //   StaticJsonDocument<300> JSONbuffer;
+  //   JsonObject JSONencoder = JSONbuffer.to<JsonObject>();
 
-    JSONencoder["cardId"] = nuidStr;
-    JSONencoder["roomId"] = ROOM_ID;
+  //   JSONencoder["cardId"] = nuidStr;
+  //   JSONencoder["roomId"] = ROOM_ID;
 
-    char JSONmessageBuffer[200];
-    serializeJson(JSONencoder, JSONmessageBuffer);
-    Serial.println("Sending message to MQTT topic..");
-    Serial.println(JSONmessageBuffer);
+  //   char JSONmessageBuffer[200];
+  //   serializeJson(JSONencoder, JSONmessageBuffer);
+  //   Serial.println("Sending message to MQTT topic..");
+  //   Serial.println(JSONmessageBuffer);
 
-    if (mqttClient.publish(MQTT_TELEMETRY_TOPIC, JSONmessageBuffer)) {
-      Serial.println("Success sending message");
-    } else {
-      Serial.println("Error sending message");
-    }
+  //   if (mqttClient.publish(MQTT_TELEMETRY_TOPIC, JSONmessageBuffer)) {
+  //     Serial.println("Success sending message");
+  //   } else {
+  //     Serial.println("Error sending message");
+  //   }
 
-    Serial.println();
-    mfrc522.PICC_HaltA();
+  //   Serial.println();
+  //   mfrc522.PICC_HaltA();
+  // }
+
+  currentState = digitalRead(BUTTON_WIFI_SETUP_PIN);
+  if (lastState == HIGH && currentState == LOW) {
+    Serial.println("Button pressed!");
+    playSound();
   }
+  lastState = currentState;
 }
