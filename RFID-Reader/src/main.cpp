@@ -7,6 +7,7 @@
 #include <WiFiUdp.h>
 #include "config.h"
 #include "pitches.h"
+#include "WiFiManager.h"
 
 
 int lastState = HIGH; // the previous state
@@ -97,7 +98,7 @@ void setup() {
   // mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
   // connectToMQTT(MQTT_CLIENT_ID, MQTT_RETRY_INTERVAL, false);
 
-  SPI.begin();  // Init SPI bus
+  // SPI.begin();  // Init SPI bus
   // mfrc522.PCD_Init();  // Init MFRC522
 
   // Serial.println("RC522 Initialized. Bring a card near...");
@@ -105,6 +106,27 @@ void setup() {
   // playSound();
 
   pinMode(BUTTON_WIFI_SETUP_PIN, INPUT_PULLUP);
+
+  // WIFI MANAGER INTEGRATION - MANUAL AT THE START
+  WiFi.mode(WIFI_STA);
+
+  WiFiManager wm;
+  // Only for DEV and testing
+  // wm.resetSettings();
+
+  Serial.println("Connecting...");
+  bool res;
+  res = wm.autoConnect("ESP32AutoConnectAP", "password");
+
+  if (!res) {
+    Serial.println("Failed to connect.");
+  } else {
+    Serial.printf("Connected to %s.", wm.getWiFiSSID());
+    Serial.println();
+    playSound();
+  }
+
+  Serial.println("Setup completed.");
 }
 
 void loop() {
@@ -152,7 +174,22 @@ void loop() {
 
   currentState = digitalRead(BUTTON_WIFI_SETUP_PIN);
   if (lastState == HIGH && currentState == LOW) {
-    Serial.println("Button pressed!");
+    Serial.println("Starting with WiFi reset...");
+    
+    WiFiManager wm;
+
+    wm.setConfigPortalTimeout(120); // seconds
+
+    if (!wm.startConfigPortal("ESP32AutoConnectAP", "password")) {
+      Serial.println("Failed to connect and hit timeout.");
+      delay(3000);
+      // Reseting and trying again
+      ESP.restart();
+      delay(5000);
+    }
+
+    Serial.printf("Connected to %s.", wm.getWiFiSSID());
+    Serial.println();
     playSound();
   }
   lastState = currentState;
